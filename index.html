@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Koko Leaf Dash (Mobile + Phantom)</title>
+  <style>
+    html,body { height:100%; margin:0; font-family: 'Helvetica', Arial, sans-serif; -webkit-tap-highlight-color: transparent;}
+    #app { display:flex; flex-direction:column; align-items:center; gap:8px; padding:10px; box-sizing:border-box; background: #e8f0ea; min-height:100vh; }
+    canvas { border-radius:12px; box-shadow: 0 6px 18px rgba(0,0,0,0.18); touch-action: none; background: #cfe7d0; width:100%; max-width:900px; height:auto; display:block; }
+    .hud { width:100%; max-width:900px; display:flex; justify-content:space-between; gap:8px; align-items:center; }
+    .left { display:flex; gap:8px; align-items:center; }
+    button { padding:10px 12px; border-radius:10px; border:0; background:white; box-shadow: 0 3px 8px rgba(0,0,0,0.12); font-weight:600; }
+    .small { font-size:13px; padding:8px 10px; }
+    .note { font-size:12px; color:#444; max-width:900px; text-align:left; }
+    #addr { font-size:12px; color:#0b7; word-break:break-all; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h2>🐨 Koko Leaf Dash</h2>
+
+    <div class="hud">
+      <div class="left">
+        <div id="scoreBox">Score: 0</div>
+        <div style="width:12px;"></div>
+        <div id="cocoBox">COCO: 0</div>
+      </div>
+
+      <div style="display:flex; gap:8px;">
+        <button id="connectBtn" class="small">Connect Phantom</button>
+        <button id="signBtn" class="small" disabled>Sign Redemption</button>
+      </div>
+    </div>
+
+    <canvas id="game" width="900" height="520"></canvas>
+
+    <div class="note">
+      <div id="addr">지갑: 미연결</div>
+      <p>조작: 화면을 터치하면 코코가 터치 지점으로 천천히 이동합니다. 유칼립투스 잎을 받아 점수를 올리세요. (10점/잎) <strong>100점 = 1 COCO</strong></p>
+      <p><strong>핸드폰에서 지갑 연결하려면 Phantom 앱의 내장 브라우저로 이 페이지를 여세요.</strong></p>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // 설정
+  const POINT_PER_LEAF = 10;
+  const CONVERSION_RATE = 100; // pts -> 1 COCO
+  const LEAF_SPAWN_MS = 900;
+
+  // 요소
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const scoreBox = document.getElementById('scoreBox');
+  const cocoBox = document.getElementById('cocoBox');
+  const connectBtn = document.getElementById('connectBtn');
+  const signBtn = document.getElementById('signBtn');
+  const addrEl = document.getElementById('addr');
+
+  // 반응형 크기 (화면 너비 따라)
+  function fitCanvas() {
+    const maxW = Math.min(window.innerWidth - 20, 900);
+    const scale = maxW / 900;
+    canvas.style.width = Math.round(900 * scale) + 'px';
+    canvas.style.height = Math.round(520 * scale) + 'px';
+  }
+  window.addEventListener('resize', fitCanvas);
+  fitCanvas();
+
+  // 이미지 로드
+  const IMG_BG = new Image();
+  const IMG_KOKO = new Image();
+  const IMG_LEAF = new Image();
+  IMG_BG.src = 'background.png';
+  IMG_KOKO.src = 'koko.png';
+  IMG_LEAF.src = 'leaf.png';
+
+  // 게임 상태
+  let score = 0;
+  let leaves = [];
+  let lastSpawn = 0;
+  let lastTime = performance.now();
+
+  // 코코 객체
+  const koala = { x: 450, y: 400, w: 140, h: 140, targetX: 450 };
+
+  // 입력: 터치/클릭 -> 목표 X 설정
+  function onPointer(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = (e.touches ? e.touches[0].clientX : e.clientX);
+    const x = (clientX - rect.left) * (900 / rect.width);
+    koala.targetX = x;
+  }
+  canvas.addEventListener('pointerdown', onPointer);
+  canvas.addEventListener('touchstart', onPointer);
+
+  // 잎 생성
+  function spawnLeaf() {
+    const x = 40 + Math.random() * (900 - 80);
+    const size = 36 + Math.random() * 36;
+    leaves.push({ x, y: -30, vy: 80 + Math.random() * 80, size, wobble: Math.random()*6 });
+  }
+
+  // 충돌 검사
+  function collide(aX, aY, aR, bX, bY, bR) {
+    const dx = aX - bX;
+    const dy = aY - bY;
+    return dx*dx + dy*dy <= (aR + bR)*(aR + bR);
+  }
+
+  // 렌더/업데이트 루프
+  function loop(now) {
+    const dt = Math.min(0.05, (now - lastTime)/1000);
+    lastTime = now;
+
+    // 스폰 타이밍
+    lastSpawn += dt*1000;
+    if (lastSpawn >= LEAF_SPAWN_MS) { lastSpawn = 0; spawnLeaf(); }
+
+    // 업데이트
+    // 코코 부드럽게 이동
+    koala.x += (koala.targetX - koala.x) * Math.min(1, 6*dt);
+
+    // 잎 이동
+    for (let i = leaves.length - 1; i >= 0; i--) {
+      const lf = leaves[i];
+      lf.y += lf.vy * dt;
+      lf.x += Math.sin((lf.wobble += dt*6)) * 20 * dt;
+
+      // 충돌
+      if (collide(koala.x, koala.y, 54, lf.x, lf.y, lf.size * 0.6)) {
+        score += POINT_PER_LEAF;
+        leaves.splice(i,1);
+        updateHUD();
+        continue;
+      }
+      // 바닥 지나치면 제거
+      if (lf.y - lf.size > 520) {
+        leaves.splice(i,1);
+      }
+    }
+
+    // 그리기 (논리 좌표 900x520)
+    ctx.clearRect(0,0,900,520);
+    // 배경
+    if (IMG_BG.complete) ctx.drawImage(IMG_BG, 0, 0, 900, 520);
+    else { ctx.fillStyle = '#d7f0d8'; ctx.fillRect(0,0,900,520); }
+
+    // 잎
+    for (const lf of leaves) {
+      ctx.save();
+      ctx.translate(lf.x, lf.y);
+      ctx.rotate(Math.sin(lf.wobble) * 0.4);
+      if (IMG_LEAF.complete) ctx.drawImage(IMG_LEAF, -lf.size/2, -lf.size/2, lf.size, lf.size);
+      else {
+        ctx.fillStyle = '#2ea44f';
+        ctx.beginPath(); ctx.ellipse(0,0,lf.size/2,lf.size/3,0,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // 코코 그리기
+    if (IMG_KOKO.complete) ctx.drawImage(IMG_KOKO, koala.x - koala.w/2, koala.y - koala.h/2, koala.w, koala.h);
+    else {
+      ctx.fillStyle='#9aa2b0';
+      ctx.beginPath(); ctx.arc(koala.x, koala.y, 60,0,2*Math.PI); ctx.fill();
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  function updateHUD() {
+    scoreBox.innerText = 'Score: ' + score;
+    cocoBox.innerText = 'COCO: ' + Math.floor(score / CONVERSION_RATE);
+  }
+
+  // Phantom wallet 연결/서명
+  let connected = false;
+  connectBtn.addEventListener('click', async () => {
+    if (!window.solana) {
+      alert('Phantom이 설치되어 있지 않습니다. 모바일에서는 Phantom 앱 내 브라우저로 이 페이지를 열어주세요.');
+      return;
+    }
+    try {
+      const resp = await window.solana.connect();
+      connected = true;
+      connectBtn.innerText = 'Connected ✓';
+      connectBtn.disabled = true;
+      signBtn.disabled = false;
+      addrEl.innerText = '지갑: ' + (window.solana.publicKey ? window.solana.publicKey.toString() : (resp?.publicKey?.toString()||'연결됨'));
+    } catch (err) {
+      console.error(err);
+      alert('지갑 연결 취소됨');
+    }
+  });
+
+  signBtn.addEventListener('click', async () => {
+    if (!connected || !window.solana) { alert('지갑을 연결하세요'); return; }
+    try {
+      const publicKey = window.solana.publicKey?.toString();
+      const cocoAmount = Math.floor(score / CONVERSION_RATE);
+      if (cocoAmount <= 0) { alert('교환 가능한 COCO가 없습니다.'); return; }
+      const msg = `KokoLeafRedeem\\naddress=${publicKey}\\nscore=${score}\\nCOCO=${cocoAmount}\\ntime=${new Date().toISOString()}`;
+      const encoded = new TextEncoder().encode(msg);
+      // Phantom signMessage (may return {signature, publicKey})
+      const signed = await window.solana.signMessage(encoded, 'utf8');
+      // signed.signature could be Uint8Array or Array
+      const sigArr = signed?.signature || signed;
+      const sigU8 = sigArr instanceof Uint8Array ? sigArr : new Uint8Array(sigArr);
+      const base64 = btoa(String.fromCharCode(...sigU8));
+      alert('서명 완료 (base64):\\n' + base64);
+    } catch (err) {
+      console.error(err);
+      alert('서명 실패: ' + (err?.message || err));
+    }
+  });
+
+  // 초기 HUD
+  updateHUD();
+
+  // 시작 루프
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
