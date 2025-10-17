@@ -1,33 +1,21 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Koko Leaf Dash (Mobile + Phantom)</title>
+  <title>Koko Leaf Dash</title>
   <style>
-    html,body { height:100%; margin:0; font-family: 'Helvetica', Arial, sans-serif; -webkit-tap-highlight-color: transparent;}
-    #app { display:flex; flex-direction:column; align-items:center; gap:8px; padding:10px; box-sizing:border-box; background: #e8f0ea; min-height:100vh; }
-    canvas { border-radius:12px; box-shadow: 0 6px 18px rgba(0,0,0,0.18); touch-action: none; background: #cfe7d0; width:100%; max-width:900px; height:auto; display:block; }
-    .hud { width:100%; max-width:900px; display:flex; justify-content:space-between; gap:8px; align-items:center; }
-    .left { display:flex; gap:8px; align-items:center; }
-    button { padding:10px 12px; border-radius:10px; border:0; background:white; box-shadow: 0 3px 8px rgba(0,0,0,0.12); font-weight:600; }
-    .small { font-size:13px; padding:8px 10px; }
-    .note { font-size:12px; color:#444; max-width:900px; text-align:left; }
-    #addr { font-size:12px; color:#0b7; word-break:break-all; }
-    #overlay {
-      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-      pointer-events:none;
-    }
-    .game-over {
-      pointer-events:auto;
-      background: rgba(0,0,0,0.55);
-      color:white;
-      padding:20px;
-      border-radius:12px;
-      text-align:center;
-      width:80%;
-      max-width:360px;
-    }
+    html,body { height:100%; margin:0; font-family:'Helvetica',Arial,sans-serif; -webkit-tap-highlight-color:transparent;}
+    #app { display:flex; flex-direction:column; align-items:center; gap:8px; padding:10px; box-sizing:border-box; background:#e8f0ea; min-height:100vh;}
+    canvas { border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.18); touch-action:none; background:#cfe7d0; width:100%; max-width:900px; height:auto; display:block;}
+    .hud { width:100%; max-width:900px; display:flex; justify-content:space-between; gap:8px; align-items:center;}
+    .left { display:flex; gap:8px; align-items:center;}
+    button { padding:10px 12px; border-radius:10px; border:0; background:white; box-shadow:0 3px 8px rgba(0,0,0,0.12); font-weight:600;}
+    .small { font-size:13px; padding:8px 10px;}
+    .note { font-size:12px; color:#444; max-width:900px; text-align:left;}
+    #addr { font-size:12px; color:#0b7; word-break:break-all;}
+    #overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;}
+    .game-over { pointer-events:auto; background:rgba(0,0,0,0.55); color:white; padding:20px; border-radius:12px; text-align:center; width:80%; max-width:360px;}
   </style>
 </head>
 <body>
@@ -38,14 +26,14 @@
       <div class="left">
         <div id="scoreBox">Score: 0</div>
         <div style="width:12px;"></div>
-        <div id="cocoBox">COCO: 0</div>
+        <div id="kokoBox">KOKO: 0</div>
         <div style="width:12px;"></div>
         <div id="missBox">Misses: 0 / 2</div>
       </div>
 
       <div style="display:flex; gap:8px;">
-        <button id="connectBtn" class="small">Connect Phantom</button>
-        <button id="buyBtn" class="small" disabled>Buy Item (0.1 SOL)</button>
+        <button id="connectBtn" class="small">Connect Wallet</button>
+        <button id="buyBtn" class="small" disabled>Buy Item (0.005 SOL)</button>
         <button id="claimBtn" class="small" disabled>Claim KOKO</button>
       </div>
     </div>
@@ -53,10 +41,11 @@
     <canvas id="game" width="900" height="520"></canvas>
 
     <div class="note">
-      <div id="addr">지갑: 미연결</div>
-      <p>조작: 화면을 터치하면 코코가 터치 지점으로 천천히 이동합니다. 유칼립투스 잎을 받아 점수를 올리세요. (10점/잎) <strong>100점 = 1 COCO (클레임 필요)</strong></p>
-      <p><strong>핸드폰에서 지갑 연결하려면 Phantom 앱의 내장 브라우저로 이 페이지를 여세요.</strong></p>
-      <p>참고: COCO 토큰(실제 SPL 토큰) 지급은 게임 클라이언트가 아닌 보상 지갑(서버 또는 운영자)이 수행해야 합니다. 게임은 '클레임 요청' 서명을 생성합니다.</p>
+      <div id="addr">Wallet: not connected</div>
+      <p>Tap anywhere to move Koko. Catch eucalyptus leaves to earn <strong>10 points</strong> each.  
+         When your score reaches <strong>100 points</strong>, you can claim <strong>1 KOKO token</strong>.</p>
+      <p><strong>Tip:</strong> Open this page inside the <strong>Phantom app browser</strong> on mobile to connect your wallet.</p>
+      <p>Note: Actual KOKO token transfers are made by the reward wallet (server or admin). This game only creates a signed claim request.</p>
     </div>
 
     <div id="overlay"></div>
@@ -64,20 +53,20 @@
 
 <script>
 (() => {
-  // ---------- 설정 (필수로 교체) ----------
-  const SELLER_ADDRESS = "SELLER_PUBLIC_KEY_HERE"; // 예: "Fj...ABC" - 아이템 판매자 주소로 교체
-  const ITEM_PRICE_SOL = 0.1; // 아이템 가격 (SOL)
-  const REWARD_SERVER_ENDPOINT = ""; // 자동 처리용 서버 엔드포인트가 있다면 입력 (예: https://yourserver.com/reward)
-  const KOKO_PER_THRESHOLD = 1; // 100점 당 지급할 토큰 개수 (정책)
+  // ---------- CONFIG ----------
+  const SELLER_ADDRESS = "SELLER_PUBLIC_KEY_HERE"; // Replace with your seller wallet address
+  const ITEM_PRICE_SOL = 0.005;                    // <-- updated to 0.005 SOL
+  const REWARD_SERVER_ENDPOINT = "";               // Optional: backend endpoint
+  const KOKO_PER_THRESHOLD = 1;
   const POINT_PER_LEAF = 10;
-  const CONVERSION_RATE = 100; // pts -> 1 COCO
+  const CONVERSION_RATE = 100;
   const LEAF_SPAWN_MS = 900;
 
-  // 요소
+  // Elements
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const scoreBox = document.getElementById('scoreBox');
-  const cocoBox = document.getElementById('cocoBox');
+  const kokoBox = document.getElementById('kokoBox');
   const connectBtn = document.getElementById('connectBtn');
   const buyBtn = document.getElementById('buyBtn');
   const claimBtn = document.getElementById('claimBtn');
@@ -85,316 +74,149 @@
   const missBox = document.getElementById('missBox');
   const overlay = document.getElementById('overlay');
 
-  // 반응형 캔버스
-  function fitCanvas() {
-    const maxW = Math.min(window.innerWidth - 20, 900);
-    const scale = maxW / 900;
-    canvas.style.width = Math.round(900 * scale) + 'px';
-    canvas.style.height = Math.round(520 * scale) + 'px';
+  // Responsive canvas
+  function fitCanvas(){
+    const maxW=Math.min(window.innerWidth-20,900);
+    const scale=maxW/900;
+    canvas.style.width=Math.round(900*scale)+'px';
+    canvas.style.height=Math.round(520*scale)+'px';
   }
-  window.addEventListener('resize', fitCanvas);
+  window.addEventListener('resize',fitCanvas);
   fitCanvas();
 
-  // 이미지 로드
-  const IMG_BG = new Image();
-  const IMG_KOKO = new Image();
-  const IMG_LEAF = new Image();
-  IMG_BG.src = 'background.png';
-  IMG_KOKO.src = 'koko.png';
-  IMG_LEAF.src = 'leaf.png';
+  // Images
+  const IMG_BG=new Image(), IMG_KOKO=new Image(), IMG_LEAF=new Image();
+  IMG_BG.src='background.png'; IMG_KOKO.src='koko.png'; IMG_LEAF.src='leaf.png';
 
-  // 게임 상태
-  let score = 0;
-  let leaves = [];
-  let lastSpawn = 0;
-  let lastTime = performance.now();
-  let misses = 0;
-  let gameOverFlag = false;
-  let connected = false;
-  let lastRewardedThreshold = 0; // 중복 보상 방지
+  // Game state
+  let score=0, leaves=[], lastSpawn=0, lastTime=performance.now();
+  let misses=0, gameOverFlag=false, connected=false, lastRewardedThreshold=0;
+  const koko={x:450,y:400,w:140,h:140,targetX:450};
 
-  // 코코 객체
-  const koala = { x: 450, y: 400, w: 140, h: 140, targetX: 450 };
-
-  // 입력: 터치/클릭 -> 목표 X 설정 (비활성화 상태 체크 포함)
-  function onPointer(e) {
-    if (gameOverFlag) return;
-    const rect = canvas.getBoundingClientRect();
-    const clientX = (e.touches ? e.touches[0].clientX : e.clientX);
-    const x = (clientX - rect.left) * (900 / rect.width);
-    koala.targetX = x;
+  function onPointer(e){
+    if(gameOverFlag)return;
+    const rect=canvas.getBoundingClientRect();
+    const x=((e.touches?e.touches[0].clientX:e.clientX)-rect.left)*(900/rect.width);
+    koko.targetX=x;
   }
-  canvas.addEventListener('pointerdown', onPointer);
-  canvas.addEventListener('touchstart', onPointer);
+  canvas.addEventListener('pointerdown',onPointer);
+  canvas.addEventListener('touchstart',onPointer);
 
-  // 잎 생성
-  function spawnLeaf() {
-    const x = 40 + Math.random() * (900 - 80);
-    const size = 36 + Math.random() * 36;
-    leaves.push({ x, y: -30, vy: 80 + Math.random() * 80, size, wobble: Math.random()*6 });
+  function spawnLeaf(){
+    const x=40+Math.random()*(900-80);
+    const size=36+Math.random()*36;
+    leaves.push({x,y:-30,vy:80+Math.random()*80,size,wobble:Math.random()*6});
   }
 
-  // 충돌 검사 (원 근사)
-  function collide(aX, aY, aR, bX, bY, bR) {
-    const dx = aX - bX;
-    const dy = aY - bY;
-    return dx*dx + dy*dy <= (aR + bR)*(aR + bR);
+  function collide(ax,ay,ar,bx,by,br){
+    const dx=ax-bx,dy=ay-by;return dx*dx+dy*dy<=(ar+br)*(ar+br);
   }
 
-  // HUD 업데이트
-  function updateHUD() {
-    scoreBox.innerText = 'Score: ' + score;
-    cocoBox.innerText = 'COCO: ' + Math.floor(score / CONVERSION_RATE);
-    missBox.innerText = 'Misses: ' + misses + ' / 2';
-    // claim 버튼은 점수기준 활성화
-    claimBtn.disabled = !(score >= CONVERSION_RATE);
+  function updateHUD(){
+    scoreBox.innerText='Score: '+score;
+    kokoBox.innerText='KOKO: '+Math.floor(score/CONVERSION_RATE);
+    missBox.innerText='Misses: '+misses+' / 2';
+    claimBtn.disabled=!(score>=CONVERSION_RATE);
   }
 
-  // 게임오버 처리
-  function gameOver() {
-    gameOverFlag = true;
-    // 오버레이 표시
-    overlay.innerHTML = `
-      <div class="game-over">
-        <h3>게임 오버</h3>
-        <p>잎사귀를 2번 놓쳤습니다.</p>
-        <p>점수: ${score}</p>
-        <button id="restartBtn" class="small">다시 시작</button>
-      </div>
-    `;
-    const restartBtn = document.getElementById('restartBtn');
-    restartBtn.addEventListener('click', restartGame);
+  function gameOver(){
+    gameOverFlag=true;
+    overlay.innerHTML=`<div class="game-over"><h3>Game Over</h3><p>You missed 2 leaves.</p><p>Final Score: ${score}</p><button id="restartBtn" class="small">Restart</button></div>`;
+    document.getElementById('restartBtn').onclick=restartGame;
   }
 
-  function restartGame() {
-    // 초기화
-    score = 0;
-    leaves = [];
-    lastSpawn = 0;
-    misses = 0;
-    gameOverFlag = false;
-    overlay.innerHTML = '';
-    lastTime = performance.now();
-    requestAnimationFrame(loop);
-    updateHUD();
+  function restartGame(){
+    score=0;leaves=[];lastSpawn=0;misses=0;gameOverFlag=false;overlay.innerHTML='';
+    lastTime=performance.now();requestAnimationFrame(loop);updateHUD();
   }
 
-  // 렌더/업데이트 루프
-  function loop(now) {
-    if (gameOverFlag) return;
-    const dt = Math.min(0.05, (now - lastTime)/1000);
-    lastTime = now;
-
-    // 스폰 타이밍
-    lastSpawn += dt*1000;
-    if (lastSpawn >= LEAF_SPAWN_MS) { lastSpawn = 0; spawnLeaf(); }
-
-    // 업데이트
-    koala.x += (koala.targetX - koala.x) * Math.min(1, 6*dt);
-
-    // 잎 업데이트
-    for (let i = leaves.length - 1; i >= 0; i--) {
-      const lf = leaves[i];
-      lf.y += lf.vy * dt;
-      lf.x += Math.sin((lf.wobble += dt*6)) * 20 * dt;
-
-      // 충돌
-      if (collide(koala.x, koala.y, 54, lf.x, lf.y, lf.size * 0.6)) {
-        score += POINT_PER_LEAF;
-        leaves.splice(i,1);
-        updateHUD();
-        checkRewardThreshold();
-        continue;
+  function loop(now){
+    if(gameOverFlag)return;
+    const dt=Math.min(0.05,(now-lastTime)/1000);lastTime=now;
+    lastSpawn+=dt*1000;if(lastSpawn>=LEAF_SPAWN_MS){lastSpawn=0;spawnLeaf();}
+    koko.x+=(koko.targetX-koko.x)*Math.min(1,6*dt);
+    for(let i=leaves.length-1;i>=0;i--){
+      const lf=leaves[i];lf.y+=lf.vy*dt;lf.x+=Math.sin((lf.wobble+=dt*6))*20*dt;
+      if(collide(koko.x,koko.y,54,lf.x,lf.y,lf.size*0.6)){
+        score+=POINT_PER_LEAF;leaves.splice(i,1);updateHUD();checkReward();continue;
       }
-      // 바닥 지나치면 제거 + miss 증가
-      if (lf.y - lf.size > 520) {
-        leaves.splice(i,1);
-        misses += 1;
-        updateHUD();
-        if (misses >= 2) {
-          gameOver();
-          return;
-        }
-      }
+      if(lf.y-lf.size>520){leaves.splice(i,1);misses++;updateHUD();if(misses>=2){gameOver();return;}}
     }
-
-    // 그리기
     ctx.clearRect(0,0,900,520);
-    if (IMG_BG.complete) ctx.drawImage(IMG_BG, 0, 0, 900, 520);
-    else { ctx.fillStyle = '#d7f0d8'; ctx.fillRect(0,0,900,520); }
-
-    for (const lf of leaves) {
-      ctx.save();
-      ctx.translate(lf.x, lf.y);
-      ctx.rotate(Math.sin(lf.wobble) * 0.4);
-      if (IMG_LEAF.complete) ctx.drawImage(IMG_LEAF, -lf.size/2, -lf.size/2, lf.size, lf.size);
-      else {
-        ctx.fillStyle = '#2ea44f';
-        ctx.beginPath(); ctx.ellipse(0,0,lf.size/2,lf.size/3,0,0,Math.PI*2); ctx.fill();
-      }
-      ctx.restore();
-    }
-
-    if (IMG_KOKO.complete) ctx.drawImage(IMG_KOKO, koala.x - koala.w/2, koala.y - koala.h/2, koala.w, koala.h);
-    else {
-      ctx.fillStyle='#9aa2b0';
-      ctx.beginPath(); ctx.arc(koala.x, koala.y, 60,0,2*Math.PI); ctx.fill();
-    }
-
+    if(IMG_BG.complete)ctx.drawImage(IMG_BG,0,0,900,520);else{ctx.fillStyle='#d7f0d8';ctx.fillRect(0,0,900,520);}
+    for(const lf of leaves){ctx.save();ctx.translate(lf.x,lf.y);ctx.rotate(Math.sin(lf.wobble)*0.4);
+      if(IMG_LEAF.complete)ctx.drawImage(IMG_LEAF,-lf.size/2,-lf.size/2,lf.size,lf.size);
+      else{ctx.fillStyle='#2ea44f';ctx.beginPath();ctx.ellipse(0,0,lf.size/2,lf.size/3,0,0,Math.PI*2);ctx.fill();}
+      ctx.restore();}
+    if(IMG_KOKO.complete)ctx.drawImage(IMG_KOKO,koko.x-koko.w/2,koko.y-koko.h/2,koko.w,koko.h);
+    else{ctx.fillStyle='#9aa2b0';ctx.beginPath();ctx.arc(koko.x,koko.y,60,0,2*Math.PI);ctx.fill();}
     requestAnimationFrame(loop);
   }
 
-  // 보상 임계값 체크 (한 번만 보상 요구)
-  function checkRewardThreshold() {
-    const currentThreshold = Math.floor(score / CONVERSION_RATE);
-    if (currentThreshold > lastRewardedThreshold) {
-      // 새로 클레임 가능한 단계에 도달
-      lastRewardedThreshold = currentThreshold;
-      // 알림 또는 자동 클레임 시도
-      // 여기서는 자동으로 claim 버튼을 활성화 (버튼은 이미 활성화됨)
-      // 그리고 사용자에게 팝업 안내
-      alert(`${currentThreshold * KOKO_PER_THRESHOLD} COCO를 클레임할 수 있습니다! "Claim KOKO" 버튼을 눌러 요청하세요.`);
-    }
+  function checkReward(){
+    const current=Math.floor(score/CONVERSION_RATE);
+    if(current>lastRewardedThreshold){lastRewardedThreshold=current;alert(`You can claim ${current*KOKO_PER_THRESHOLD} KOKO token(s)! Press "Claim KOKO".`);}
   }
 
-  // Phantom 연결
-  connectBtn.addEventListener('click', async () => {
-    if (!window.solana) {
-      alert('Phantom이 설치되어 있지 않습니다. 모바일에서는 Phantom 앱 내 브라우저로 이 페이지를 여세요.');
-      return;
-    }
-    try {
-      const resp = await window.solana.connect();
-      connected = true;
-      connectBtn.innerText = 'Connected ✓';
-      connectBtn.disabled = true;
-      buyBtn.disabled = false;
-      claimBtn.disabled = !(score >= CONVERSION_RATE);
-      addrEl.innerText = '지갑: ' + (window.solana.publicKey ? window.solana.publicKey.toString() : (resp?.publicKey?.toString()||'연결됨'));
-    } catch (err) {
-      console.error(err);
-      alert('지갑 연결 취소됨');
-    }
-  });
+  connectBtn.onclick=async()=>{
+    if(!window.solana){alert('Phantom wallet not detected.');return;}
+    try{const r=await window.solana.connect();connected=true;
+      connectBtn.innerText='Connected ✓';connectBtn.disabled=true;
+      buyBtn.disabled=false;claimBtn.disabled=!(score>=CONVERSION_RATE);
+      addrEl.innerText='Wallet: '+(window.solana.publicKey?.toString()||r?.publicKey?.toString()||'connected');
+    }catch(e){alert('Wallet connection canceled.');}
+  };
 
-  // 아이템 구매: 사용자의 지갑에서 판매자 주소로 SOL 전송
-  buyBtn.addEventListener('click', async () => {
-    if (!connected || !window.solana) { alert('지갑을 연결하세요'); return; }
-    try {
-      const publicKey = window.solana.publicKey;
-      if (!publicKey) throw new Error('Public key 없음');
+  buyBtn.onclick=async()=>{
+    if(!connected||!window.solana){alert('Connect your wallet first.');return;}
+    try{
+      const pk=window.solana.publicKey;
+      const lamports=Math.round(ITEM_PRICE_SOL*1e9);
+      const to=new solanaWeb3.PublicKey(SELLER_ADDRESS);
+      const tx=new solanaWeb3.Transaction().add(solanaWeb3.SystemProgram.transfer({fromPubkey:pk,toPubkey:to,lamports}));
+      tx.feePayer=pk;
+      const {blockhash}=await(new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'))).getLatestBlockhash();
+      tx.recentBlockhash=blockhash;
+      const signed=await window.solana.signTransaction(tx);
+      const raw=signed.serialize();
+      const conn=new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
+      const sig=await conn.sendRawTransaction(raw);
+      await conn.confirmTransaction(sig,'confirmed');
+      alert('Item purchased! Tx: '+sig);
+    }catch(e){alert('Purchase failed: '+(e?.message||e));}
+  };
 
-      // web3 사용: window.solana.signAndSendTransaction expects a solanaWeb3.Transaction
-      // solanaWeb3는 <script src="https://unpkg.com/@solana/web3.js/...">로 로드되어야 함 (하단에 로드)
-      const lamports = Math.round(ITEM_PRICE_SOL * 1e9);
-      const toPubkey = new solanaWeb3.PublicKey(SELLER_ADDRESS);
-      const tx = new solanaWeb3.Transaction().add(
-        solanaWeb3.SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey,
-          lamports
-        })
-      );
+  claimBtn.onclick=async()=>{
+    if(!connected||!window.solana){alert('Connect wallet first.');return;}
+    try{
+      const pub=window.solana.publicKey?.toString();
+      const amt=Math.floor(score/CONVERSION_RATE)*KOKO_PER_THRESHOLD;
+      if(amt<=0){alert('No KOKO available yet.');return;}
+      const msg=`KokoLeafClaim\naddress=${pub}\nscore=${score}\nKOKO=${amt}\ntime=${new Date().toISOString()}`;
+      const enc=new TextEncoder().encode(msg);
+      const signed=await window.solana.signMessage(enc,'utf8');
+      const sigU8=new Uint8Array(signed.signature||signed);
+      const base64=btoa(String.fromCharCode(...sigU8));
+      const obj={publicKey:pub,score,kokoAmount:amt,message:msg,signature:base64};
+      if(REWARD_SERVER_ENDPOINT){
+        try{
+          const res=await fetch(REWARD_SERVER_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj)});
+          if(!res.ok)throw new Error('Server '+res.status);
+          alert('Claim sent!');}
+        catch(e){copy(JSON.stringify(obj));alert('Server failed. Claim copied.');}
+      }else{copy(JSON.stringify(obj));alert('Claim copied. Send to admin for KOKO.');}
+      lastRewardedThreshold=Math.floor(score/CONVERSION_RATE);updateHUD();
+    }catch(e){alert('Claim failed: '+(e?.message||e));}
+  };
 
-      // 최근 블록해시 필요
-      tx.feePayer = publicKey;
-      const { blockhash } = await (new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'))).getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-
-      const signedTx = await window.solana.signTransaction(tx);
-      const raw = signedTx.serialize();
-      const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
-      const signature = await connection.sendRawTransaction(raw);
-      await connection.confirmTransaction(signature, 'confirmed');
-
-      alert('아이템 구매 완료! tx: ' + signature);
-    } catch (err) {
-      console.error(err);
-      alert('구매 실패: ' + (err?.message || err));
-    }
-  });
-
-  // 코코 클레임: 클라이언트 측 서명 생성 -> 서버 제출 또는 수동 제출
-  claimBtn.addEventListener('click', async () => {
-    if (!connected || !window.solana) { alert('지갑을 연결하세요'); return; }
-    try {
-      const publicKey = window.solana.publicKey?.toString();
-      const cocoAmount = Math.floor(score / CONVERSION_RATE) * KOKO_PER_THRESHOLD;
-      if (cocoAmount <= 0) { alert('교환 가능한 COCO가 없습니다.'); return; }
-
-      // 메시지 내용: 운영자가 검증할 수 있는 구조로 구성
-      const msg = `KokoLeafClaim\naddress=${publicKey}\nscore=${score}\nCOCO=${cocoAmount}\ntime=${new Date().toISOString()}`;
-
-      const encoded = new TextEncoder().encode(msg);
-      // Phantom signMessage (utf8)
-      const signed = await window.solana.signMessage(encoded, 'utf8');
-      const sigArr = signed?.signature || signed;
-      const sigU8 = sigArr instanceof Uint8Array ? sigArr : new Uint8Array(sigArr);
-      const base64 = btoa(String.fromCharCode(...sigU8));
-
-      // 기본 동작: 서명 결과를 사용자에게 보여주고(복사/전송), 서버 엔드포인트가 있으면 자동 POST
-      const resultObj = {
-        publicKey,
-        score,
-        cocoAmount,
-        message: msg,
-        signature: base64
-      };
-
-      if (REWARD_SERVER_ENDPOINT) {
-        try {
-          const resp = await fetch(REWARD_SERVER_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type':'application/json' },
-            body: JSON.stringify(resultObj)
-          });
-          if (!resp.ok) throw new Error('Server responded ' + resp.status);
-          const j = await resp.json();
-          alert('클레임 요청 전송 완료: ' + JSON.stringify(j));
-        } catch (err) {
-          console.warn('서버 전송 실패', err);
-          // fallback: 서명 보여주기
-          copyToClipboard(JSON.stringify(resultObj));
-          alert('서버 전송 실패. 클레임 정보를 클립보드에 복사했습니다. 운영자에게 붙여넣기 하세요.');
-        }
-      } else {
-        // 서버 엔드포인트가 없으면 서명 정보를 사용자에게 보여줌(복사)
-        copyToClipboard(JSON.stringify(resultObj));
-        alert('클레임 서명이 생성되었습니다. 클레임 정보를 클립보드에 복사했습니다. 운영자(또는 서버)에 제출하면 COCO 토큰이 지급됩니다.');
-      }
-
-      // 클레임 후, 중복 클레임 방지하려면 lastRewardedThreshold 업데이트
-      lastRewardedThreshold = Math.floor(score / CONVERSION_RATE);
-      updateHUD();
-    } catch (err) {
-      console.error(err);
-      alert('클레임 서명 실패: ' + (err?.message || err));
-    }
-  });
-
-  function copyToClipboard(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).catch(()=>{ fallbackCopy(text); });
-    } else {
-      fallbackCopy(text);
-    }
+  function copy(t){
+    if(navigator.clipboard)navigator.clipboard.writeText(t).catch(()=>fallbackCopy(t));else fallbackCopy(t);
   }
-  function fallbackCopy(text) {
-    const ta = document.createElement('textarea');
-    ta.value = text; document.body.appendChild(ta);
-    ta.select(); document.execCommand('copy'); ta.remove();
-  }
+  function fallbackCopy(t){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();}
 
-  // 초기 HUD & 루프 시작
-  updateHUD();
-  lastTime = performance.now();
-  requestAnimationFrame(loop);
-
+  updateHUD();lastTime=performance.now();requestAnimationFrame(loop);
 })();
 </script>
-
-<!-- Solana web3 (브라우저 글로벌 solanaWeb3 제공) -->
 <script src="https://unpkg.com/@solana/web3.js@1.76.1/lib/index.iife.js"></script>
-
 </body>
 </html>
